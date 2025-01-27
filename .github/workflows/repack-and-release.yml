@@ -1,4 +1,4 @@
-name: Release Funtuna
+name: Release FunTuna
 on:
   workflow_dispatch:
   pull_request:
@@ -10,67 +10,73 @@ on:
       - 'installer/**'
       - '.github/workflows/repack-and-release.yml'
 
-#  schedule:
-#   - cron: "0 15 * * 2,5"
 jobs:
   Repack_and_Release:
     runs-on: ubuntu-24.04
     container: ps2dev/ps2dev:v1.2.0
     steps:
-    
-    - name: Install dependencies
-      run: |
-        apk add build-base git zip p7zip
 
-    - name: checkout code for release
-      uses: actions/checkout@v1
-      
-    - name: Update wLaunchELF_ISR
-      run: |
-         wget https://github.com/israpps/wLaunchELF_ISR/releases/download/latest/BOOT-DS34.ELF -O installer/INSTALLER_CONTENTS/BOOT/ULE.ELF
-         wget https://github.com/israpps/wLaunchELF_ISR/releases/download/latest/BOOT-DS34.ELF -O __Release/ULE_psu.ELF
-    
-    - name: build installer
-      run: |
-        cd installer
-        make clean
-        make
+      # Установка зависимостей
+      - name: Install dependencies
+        run: |
+          apk add build-base git zip p7zip
 
-    - name: prepare Release package
-      run: |
-        SCH=${GITHUB_SHA::7}
-        cp installer/Installer.elf __Release/FunTuna-Fork_installer-$SCH.ELF
-        cp -r installer/INSTALLER_CONTENTS/BOOT/ __Release/MANUAL_INSTALL/BOOT/
-        cp -r installer/INSTALLER_CONTENTS/APPS/ __Release/MANUAL_INSTALL/APPS/
-        cp -r installer/INSTALLER_CONTENTS/OPL/ __Release/MANUAL_INSTALL/OPL/
+      # Клонирование репозитория
+      - name: Checkout code for release
+        uses: actions/checkout@v3
 
-    - name: Zip Folder
-      run: |
-        SCH=${GITHUB_SHA::7}
-        cd __Release
-        echo commit $SCH >>commit.txt
-        TARGET=FunTuna\[$SCH\].7z
-        echo TARGET is $TARGET
-        7z a -t7z -r $TARGET *
-        ls -R 
+      # Обновление wLaunchELF_ISR
+      - name: Update wLaunchELF_ISR
+        run: |
+          wget https://github.com/israpps/wLaunchELF_ISR/releases/download/latest/BOOT-DS34.ELF -O installer/INSTALLER_CONTENTS/BOOT/ULE.ELF
+          wget https://github.com/israpps/wLaunchELF_ISR/releases/download/latest/BOOT-DS34.ELF -O __Release/ULE_psu.ELF
 
-    - name: Upload artifacts
-      if: ${{ success() }}
-      uses: actions/upload-artifact@v3
-      with:
-        name: FunTuna
-        path: |
-             __Release/*.7z
-             installer/FunTuna-Fork_Installer.ELF
- 
-    - name: Create release
-      if: github.ref == 'refs/heads/main'
-      uses: marvinpinto/action-automatic-releases@latest
-      with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        prerelease: false
-        automatic_release_tag: "latest"
-        title: "Latest automated Repack"
-        files: |
-                __Release/*.7z
-                installer/FunTuna-Fork_Installer.ELF
+      # Сборка установщика
+      - name: Build installer
+        run: |
+          cd installer
+          make clean
+          make
+
+      # Подготовка релиза
+      - name: Prepare Release package
+        run: |
+          SCH=${GITHUB_SHA::7}
+          cp installer/Installer.elf __Release/FunTuna-Fork_installer-$SCH.ELF
+          cp -r installer/INSTALLER_CONTENTS/BOOT/ __Release/MANUAL_INSTALL/BOOT/
+          cp -r installer/INSTALLER_CONTENTS/APPS/ __Release/MANUAL_INSTALL/APPS/
+          cp -r installer/INSTALLER_CONTENTS/OPL/ __Release/MANUAL_INSTALL/OPL/
+
+      # Архивация файлов
+      - name: Zip Folder
+        run: |
+          SCH=${GITHUB_SHA::7}
+          cd __Release
+          echo commit $SCH >>commit.txt
+          TARGET=FunTuna\[$SCH\].7z
+          echo TARGET is $TARGET
+          7z a -t7z -r $TARGET *
+          ls -R 
+
+      # Загрузка артефактов
+      - name: Upload artifacts
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: FunTuna
+          path: |
+            __Release/*.7z
+            __Release/FunTuna-Fork_installer-*.ELF
+
+      # Создание релиза
+      - name: Create release
+        if: github.ref == 'refs/heads/main'
+        uses: marvinpinto/action-automatic-releases@latest
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          automatic_release_tag: "latest"
+          title: "Latest automated Repack"
+          files: |
+            __Release/*.7z
+            __Release/FunTuna-Fork_installer-*.ELF
